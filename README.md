@@ -13,6 +13,8 @@
 
 Core encoding, decoding, and file manipulation support for modeling DNA-based information storage systems as published at https://academic.oup.com/bioinformatics/article/39/10/btad572/7274858?utm_source=advanceaccess&utm_campaign=bioinformatics&utm_medium=email.
 
+This is a refresh of the [framed](https://github.com/dna-storage/framed) repository.
+
 # Documentation
 
 In depth documentation can be found in the [wiki](https://github.com/dna-storage/reframed/wiki).
