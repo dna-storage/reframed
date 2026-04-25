@@ -1,6 +1,6 @@
-[![DOI](https://zenodo.org/badge/611912849.svg)](https://zenodo.org/badge/latestdoi/611912849)
 
-# FrameD
+
+# reFrameD
 
 - [Overview](#overview)
 - [Documentation](#documentation)
@@ -15,7 +15,7 @@ Core encoding, decoding, and file manipulation support for modeling DNA-based in
 
 # Documentation
 
-In depth documentation can be found in the [wiki](https://github.com/dna-storage/framed/wiki).
+In depth documentation can be found in the [wiki](https://github.com/dna-storage/reframed/wiki).
 
 # System Requirements
 
@@ -70,15 +70,7 @@ To install dnastorage package for local development:
 
 ## Installing via Docker Image
 
-We include a pre-built Docker image that replicates a near-exact environment to that used for running fault injection simulations. The only difference being we use openmpi for this image for easier installation. With docker installed pull the image from the public repo on dockerhub using:
-
-    docker pull kvolkel/framed:revision
-
-Now, you should be able to simply run the following to run a container with a complete environment that can run FrameD and the small examples in the following sections:
-
-	docker run -it kvolkel/framed:revision
-
-No further installation steps should be required.
+TBD
 
 # Running FrameD Analysis 
 
