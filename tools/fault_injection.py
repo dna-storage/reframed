@@ -1,8 +1,14 @@
 """
 Main script for running fault injection analysis on different encoding architectures and fault environments.
 """
-import mpi4py
-from mpi4py import MPI
+try:
+    import mpi4py
+    from mpi4py import MPI
+    _MPI_AVAILABLE = True
+except ImportError:
+    MPI = None
+    _MPI_AVAILABLE = False
+
 from dnastorage.fi.fi_env import *
 import dnastorage.fi.dna_processes as dna_process
 from dnastorage.system.pipeline_dnafile import *
@@ -152,13 +158,15 @@ def _monte_kernel(monte_start,monte_end,args,comm=None): #function that will run
 
 def _monte_parallel_wrapper(task,task_comm=None): #wrapper for parallelization
     monte_start,monte_end,args = task
-    logger.info("Rank {} Beginning to run monte task".format(MPI.COMM_WORLD.rank))
+    rank = MPI.COMM_WORLD.rank if _MPI_AVAILABLE else 0
+    logger.info("Rank {} Beginning to run monte task".format(rank))
     logger.info("Monte Carlo Sim: Start {} END {}".format(monte_start,monte_end))
     return _monte_kernel(monte_start,monte_end,args,comm=task_comm)
 
 #function for running monte carlo simulations for a fixed rate fault model
 def run_monte(pool,args):
-    logger.info("Rank {} Building Tasks".format(MPI.COMM_WORLD.rank)) 
+    rank = MPI.COMM_WORLD.rank if _MPI_AVAILABLE else 0
+    logger.info("Rank {} Building Tasks".format(rank)) 
     #run many simulations to perform statistical analysis
     stats_file_path =os.path.join(args.out_dir,"fi.stats")
     stats_pickle_path = os.path.join(args.out_dir,"fi.pickle")
@@ -199,9 +207,14 @@ def run_monte(pool,args):
 if __name__ == "__main__":
     import argparse
     import schwimmbad
-    
-    comm=MPI.COMM_WORLD
-    
+
+    if _MPI_AVAILABLE:
+        comm = MPI.COMM_WORLD
+        comm_rank = comm.Get_rank()
+    else:
+        comm = None
+        comm_rank = 0
+
     parser = argparse.ArgumentParser(description="Inject faults into input file and perform analysis")
     parser.add_argument('--simulation_runs',dest="num_sims",action="store",type=int,default=1000,help="Number of simulations to run")
     parser.add_argument('--arch',required=True,choices=file_system_formats(),help="Encoding/decoding architecture")
@@ -221,31 +234,40 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.store_header==1: args.store_header=True
     else: args.store_header=False
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')                                                                                           
-    mpi_handler = MPIFileHandler(os.path.join(args.out_dir,"fi_info_{}.log".format(comm.rank)))
-    mpi_handler.setFormatter(formatter)                                                                                                                                             
-    logger.addHandler(mpi_handler)                                                                                                                                                  
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    if _MPI_AVAILABLE and comm is not None:
+        mpi_handler = MPIFileHandler(os.path.join(args.out_dir,"fi_info_{}.log".format(comm_rank)))
+        mpi_handler.setFormatter(formatter)
+        logger.addHandler(mpi_handler)
+    else:
+        logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logger.setLevel(logging.INFO)
-    assert os.path.isdir(args.out_dir)                                                                                                                                             
+    assert os.path.isdir(args.out_dir)
 
     #TODO: Have some support for recreating results from a set of seeds. For now, just spit out the seeds
     #set seeds for each process, this just ensures that not everyone is initialized off the same seed
     seed = generate.seed()
     generate.set_seed(seed)
 
-    if comm.Get_rank()>args.cores:
-        seed=0 #0 out seed of helper cores
-        
-    logger.info("SEED {} for RANK {}".format(seed,comm.rank))
-    logger.info("Processor name {}".format(MPI.Get_processor_name()))
-    logger.info("PID of Rank {}".format(os.getpid()))
-    #gather all seeds for the main process to print
-    seeds = comm.gather(seed,root=0)
-    if comm.rank ==0:
-        logger.info("Printing Gathered Seeds")
-        for i in seeds:
-            logger.info("SEED: {}".format(i))
+    if _MPI_AVAILABLE and comm is not None:
+        if comm_rank > args.cores:
+            seed = 0  # 0 out seed of helper cores
 
-    #create pool of workers, only rank 0 should continue from here
-    pool = schwimmbad.choose_pool(mpi=True,processes=args.cores,comm=MPI.COMM_WORLD)
-    run_monte(pool,args)
+        logger.info("SEED {} for RANK {}".format(seed, comm_rank))
+        logger.info("Processor name {}".format(MPI.Get_processor_name()))
+        logger.info("PID of Rank {}".format(os.getpid()))
+        #gather all seeds for the main process to print
+        seeds = comm.gather(seed, root=0)
+        if comm_rank == 0:
+            logger.info("Printing Gathered Seeds")
+            for i in seeds:
+                logger.info("SEED: {}".format(i))
+
+        #create pool of workers, only rank 0 should continue from here
+        pool = schwimmbad.choose_pool(mpi=True, processes=args.cores, comm=MPI.COMM_WORLD)
+    else:
+        logger.info("SEED {}".format(seed))
+        logger.info("PID {}".format(os.getpid()))
+        pool = schwimmbad.choose_pool(mpi=False, processes=args.cores)
+
+    run_monte(pool, args)

@@ -5,7 +5,9 @@ biopython>=1.79
 python-Levenshtein>=0.12
 bitarray>=2.3
 file-read-backwards>=2.0.0
+editdistance>=0.6
+importlib_metadata>=4.11
+schwimmbad>=0.4.0
 
-# Optional: DNArSim fault-injection via Julia (not required for core functionality)
-# Uncomment and install Julia separately if needed:
-# julia>=0.6.0
+# Optional MPI-based parallelism (install separately with OpenMPI):
+# mpi4py>=3.1

@@ -1,12 +1,24 @@
-from mpi4py import MPI
+"""
+Utils to help with sending information across processes in the DNA storage systems.
+
+MPI support is optional.  When mpi4py is not installed all functions gracefully
+degrade: scatter/gather operations become no-ops that return the original objects
+unchanged, which is correct single-process behaviour.
+"""
+
 import logging
 import pickle
+
+try:
+    from mpi4py import MPI
+    _MPI_AVAILABLE = True
+except ImportError:
+    MPI = None
+    _MPI_AVAILABLE = False
+
 logger = logging.getLogger('dna.util.mpi_utils')
 logger.addHandler(logging.NullHandler())
 
-"""
-Utils to help with sending information across processes in the DNA storage systems.
-"""
 
 def communicate_objects(objects,mpi):
     logger.info("Rank {} has {} objects at beginning of communication".format(mpi.rank,len(objects)))

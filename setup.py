@@ -63,6 +63,21 @@ setup(
     url='',
     license=license,
     packages=find_packages(exclude=( 'tests','docs', 'tools', 'other_software')),
+    install_requires=[
+        'numpy>=1.21',
+        'scipy>=1.7',
+        'biopython>=1.79',
+        'python-Levenshtein>=0.12',
+        'bitarray>=2.3',
+        'file-read-backwards>=2.0.0',
+        'editdistance>=0.6',
+        'importlib_metadata>=4.11',
+        'schwimmbad>=0.4.0',
+    ],
+    extras_require={
+        'mpi': ['mpi4py>=3.1'],
+    },
     ext_modules = [fasthedges, generate],
     cmdclass={'build_ext': OptionalBuildExt},
+    python_requires='>=3.9',
 )

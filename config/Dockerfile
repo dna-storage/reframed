@@ -55,7 +55,7 @@ RUN touch ~/.tcshrc \
   && conda init --user bash 
 
 
-COPY ./dnastorage.yml ./dnastorage.yml
+COPY ./config/dnastorage.yml ./dnastorage.yml
 COPY ./requirements.txt ./requirements.txt
 
 RUN conda env create -f dnastorage.yml
@@ -75,11 +75,8 @@ RUN conda activate dnastorage \
 COPY --chown=appuser . . 
 
 RUN conda activate dnastorage \
-&& bash ./init.sh -no-env \
+&& bash ./config/init.sh -no-env \
 && make develop \
-&& cd schwimmbad \
-&& pip install . \
-&& cd ../ \
 && conda config --set auto_activate_base false
 
   
