@@ -8,18 +8,32 @@ Changes to Note made by Kevin Volkel:
    the documented issues here - https://groups.google.com/g/mpi4py/c/SaNzc8bdj6U.
 """
 
-from mpi4py import MPI
+try:
+    from mpi4py import MPI
+    _MPI_AVAILABLE = True
+except ImportError:
+    MPI = None
+    _MPI_AVAILABLE = False
+
 import logging
-import structlog
 import os
+
+try:
+    import structlog
+except ImportError:
+    structlog = None
 
 class MPIIOStream(object):
 
     """
     A very basic MPI stream handler for synchronised I/O.
+
+    Only available when mpi4py is installed.
     """
 
     def __init__(self, filename, comm, mode):
+        if not _MPI_AVAILABLE:
+            raise ImportError("mpi4py is required for MPIIOStream")
         self._file = MPI.File.Open(MPI.COMM_SELF,filename, mode)
         print(self._file.Get_info())
     def write(self, msg):
@@ -53,7 +67,13 @@ class MPIFileHandler(logging.StreamHandler):
     """
 
     def __init__(self, filename,
-                 mode=MPI.MODE_WRONLY|MPI.MODE_CREATE, comm=MPI.COMM_WORLD):
+                 mode=None, comm=None):
+        if not _MPI_AVAILABLE:
+            raise ImportError("mpi4py is required for MPIFileHandler")
+        if mode is None:
+            mode = MPI.MODE_WRONLY | MPI.MODE_CREATE
+        if comm is None:
+            comm = MPI.COMM_WORLD
         self.filename = filename
         if os.path.exists(self.filename) and os.path.isfile(self.filename):
             os.remove(self.filename)
@@ -106,7 +126,10 @@ def main():
 
 
 if __name__ == "__main__":
-    comm = MPI.COMM_WORLD
-    mpi_handler = MPIFileHandler("test{}.log".format(comm.rank))
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    main()
+    if _MPI_AVAILABLE:
+        comm = MPI.COMM_WORLD
+        mpi_handler = MPIFileHandler("test{}.log".format(comm.rank))
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        main()
+    else:
+        print("mpi4py not available; skipping MPI logger demo.")

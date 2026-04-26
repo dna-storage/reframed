@@ -355,7 +355,7 @@ class PipeLine(EncodePacketizedFile,DecodePacketizedFile):
         return self._mpi
     @mpi.setter
     def mpi(self,comm):
-        if not ("mpi4py" in sys.modules or "mpi4py.MPI" in sys.modules):
+        if comm is not None and not ("mpi4py" in sys.modules or "mpi4py.MPI" in sys.modules):
             raise SystemError("mpi4py has not been loaded")
         self._mpi = comm #note, this should be a communicator of processes that will work together during decoding
         

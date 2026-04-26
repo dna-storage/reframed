@@ -1,14 +1,33 @@
-from mpi4py import MPI
+"""
+Utils to help with sending information across processes in the DNA storage systems.
+
+MPI support is optional.  When mpi4py is not installed all functions gracefully
+degrade: scatter/gather operations become no-ops that return the original objects
+unchanged, which is correct single-process behaviour.
+"""
+
 import logging
 import pickle
+
+try:
+    from mpi4py import MPI
+    _MPI_AVAILABLE = True
+except ImportError:
+    MPI = None
+    _MPI_AVAILABLE = False
+
 logger = logging.getLogger('dna.util.mpi_utils')
 logger.addHandler(logging.NullHandler())
 
-"""
-Utils to help with sending information across processes in the DNA storage systems.
-"""
 
-def communicate_objects(objects,mpi):
+def communicate_objects(objects, mpi):
+    """Scatter *objects* across MPI ranks.
+
+    Falls back to returning *objects* unchanged when MPI is not available or
+    *mpi* is ``None`` (single-process mode).
+    """
+    if not _MPI_AVAILABLE or mpi is None:
+        return objects
     logger.info("Rank {} has {} objects at beginning of communication".format(mpi.rank,len(objects)))
     chunked_objects=[]
     chunk_size = len(objects)//mpi.size
@@ -27,7 +46,10 @@ def communicate_objects(objects,mpi):
     logger.info("Rank {} has {} objects after communicate_objects".format(mpi.rank,len(return_objects)))
     return return_objects
 
-def object_scatter(objects,comm,objs_per_transaction=10000): #handle the scattering of a large set of objects to avoid overflow
+def object_scatter(objects, comm, objs_per_transaction=10000):
+    """Scatter a large set of objects; returns *objects* unchanged when MPI is unavailable."""
+    if not _MPI_AVAILABLE or comm is None:
+        return objects
     if comm.rank==0:
         logger.info("{} Total objects need to be communicated".format(len(objects)))
         if len(objects)>0: logger.info("Example pickle size of object is {}".format(len(pickle.dumps(objects[0]))))
@@ -44,8 +66,10 @@ def object_scatter(objects,comm,objs_per_transaction=10000): #handle the scatter
     return rank_objects
         
 
-#handle the gathering of large sets of objects to avoid overflow
-def object_gather(objects,comm,objs_per_transaction=10000):
+def object_gather(objects, comm, objs_per_transaction=10000):
+    """Gather a large set of objects; returns *objects* unchanged when MPI is unavailable."""
+    if not _MPI_AVAILABLE or comm is None:
+        return objects
     logger.info("Rank {} communicating {} objects back to rank 0".format(comm.Get_rank(),len(objects)))
     if len(objects)>0: logger.info("Example pickle size of object is {}".format(len(pickle.dumps(objects[0]))))
     objects_per_rank = objs_per_transaction//comm.size
@@ -65,5 +89,3 @@ def object_gather(objects,comm,objs_per_transaction=10000):
             return_objects+=gathered_objects
         logger.info("Rank {} has {} objects after gather communication".format(comm.Get_rank(),len(return_objects)))
     return return_objects
-
-    
