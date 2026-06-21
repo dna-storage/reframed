@@ -30,24 +30,18 @@ logger.addHandler(logging.NullHandler())
 
 
 def check_required(required, **kwargs):
-    missing = []
-    for r in required:
-        if r not in kwargs:
-            missing.append(r)
-    title = kwargs.get("title","")
-    verb = "is"
-    if len(missing) > 1:
-        verb = "are"
-        missing_s = ", ".join(missing)
-    else:
-        missing_s = "".join(missing)
-    if len(missing) >= 1:
-        print ("{} {} missing but required to build a {}.".format(missing_s,verb,title))
-        print ("Warning: Hard coded assumptions may not match expectations.")
+    missing = [r for r in required if r not in kwargs]
+    if missing:
+        title = kwargs.get("title", "pipeline")
+        verb = "is" if len(missing) == 1 else "are"
+        raise PipeLineConstructionError(
+            "{} {} missing but required to build '{}'.".format(
+                ", ".join(missing), verb, title
+            )
+        )
 
 def ReedSolomon_Base4_Pipeline(pf,**kwargs):
-    required = ["blockSizeInBytes","strandSizeInBytes","hedges_rate",\
-                "dna_length", "crc_type", "reverse_payload"]
+    required = ["blockSizeInBytes", "strandSizeInBytes"]
     check_required(required,**kwargs)
     index_bytes = kwargs.get("index_bytes",None) #optional, sets index bytes to be constant, if the constant number is less than the actual, encoder will fail
     primer5 = kwargs.get("primer5",'A'*20) #basic 5' primer region
@@ -269,8 +263,7 @@ def Fountain_Base4_Pipeline(pf, **kwargs):
     - ``outerECCStrands`` (default 75): number of parity sub-packets
     - ``fountain_seed``   (default 42): PRNG seed for the LT Tanner graph
     """
-    required = ["blockSizeInBytes", "strandSizeInBytes", "hedges_rate",
-                "dna_length", "crc_type", "reverse_payload"]
+    required = ["blockSizeInBytes", "strandSizeInBytes"]
     check_required(required, **kwargs)
     index_bytes = kwargs.get("index_bytes", None)
     primer5 = kwargs.get("primer5", 'A' * 20)

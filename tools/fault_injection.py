@@ -204,7 +204,7 @@ def run_monte(pool,args):
     stats_fd.close()
     pickle_fd.close()
 
-if __name__ == "__main__":
+def main():
     import argparse
     import schwimmbad
 
@@ -271,3 +271,6 @@ if __name__ == "__main__":
         pool = schwimmbad.choose_pool(mpi=False, processes=args.cores)
 
     run_monte(pool, args)
+
+if __name__ == "__main__":
+    main()
