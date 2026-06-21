@@ -325,7 +325,7 @@ if __name__ == "__main__":
         "primer5":"T"*10,
         "blockSizeInBytes":150,
         "strandSizeInBytes":15,
-        "innerECC":2,
+        "inner_ECC":2,
         "outerECCStrands":20,
         "dna_length":300,
     }

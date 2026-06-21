@@ -1,9 +1,6 @@
 """
 Main script for analysis on real sequencing data through the use of encode/decode pipelines.
 """
-import mpi4py
-from mpi4py import MPI
-
 from dnastorage.system.pipeline_dnafile import *
 from dnastorage.system.formats import *
 from dnastorage.util.strandinterface import *
@@ -18,14 +15,15 @@ import os
 import time
 import copy
 import json
-import numpy as np
 
-logger = logging.getLogger()                                                                                                                                     
+logger = logging.getLogger()
 
 def is_master(comm): return comm.rank==0
 
-if __name__=="__main__":
+def main():
     import argparse
+    import mpi4py
+    from mpi4py import MPI
 
     world_comm=MPI.COMM_WORLD
  
@@ -125,5 +123,7 @@ if __name__=="__main__":
         stats.persist()
         stats_fd.close()
         pickle_fd.close()
-    
-    
+
+if __name__ == "__main__":
+    main()
+

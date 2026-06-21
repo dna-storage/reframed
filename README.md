@@ -12,6 +12,52 @@
 
 Core encoding, decoding, and file manipulation support for modeling DNA-based information storage systems. This is a refresh of the [framed](https://github.com/dna-storage/framed) repository.
 
+# Quick Start
+
+Install the package (Python 3.9+ required; no MPI, C-shell, or Julia needed for basic use):
+
+```bash
+pip install -r requirements.txt
+pip install -e .
+```
+
+Encode a message to DNA strands and decode it back:
+
+```python
+from io import BytesIO
+from dnastorage.arch.builder import ReedSolomon_Base4_Pipeline
+from dnastorage.util.packetizedfile import ReadPacketizedFilestream, WritePacketizedFilestream
+
+data = b"Hello, DNA storage!"
+
+# Encode
+pf = ReadPacketizedFilestream(BytesIO(data))
+pipe = ReedSolomon_Base4_Pipeline(pf,
+    blockSizeInBytes=160, strandSizeInBytes=16,
+    primer5='CGCGATCGAT', primer3='ATCGATCGCG',
+    outerECCStrands=10, inner_ECC=0,
+    using_DNA_consolidator=False)
+strands = [s for block in pipe for s in block]
+hdr = pipe.encode_header_data()
+
+# Decode
+buf = BytesIO()
+pf2 = WritePacketizedFilestream(buf, len(data), 0)
+pipe2 = ReedSolomon_Base4_Pipeline(pf2,
+    blockSizeInBytes=160, strandSizeInBytes=16,
+    primer5='CGCGATCGAT', primer3='ATCGATCGCG',
+    outerECCStrands=10, inner_ECC=0,
+    using_DNA_consolidator=False)
+pipe2.decode_header_data(hdr)
+for s in strands:
+    pipe2.decode(s)
+pipe2.final_decode()
+buf.seek(0)
+assert buf.read(len(data)) == data
+```
+
+A runnable version of this example is at [`examples/quickstart/quickstart.py`](examples/quickstart/quickstart.py). For more usage patterns see [`tests/test_pipeline_roundtrip.py`](tests/test_pipeline_roundtrip.py). For the full HPC simulation workflow see [`tools/fault_injection.py`](tools/fault_injection.py).
+
 # Documentation
 
 In depth documentation can be found in the [wiki](https://github.com/dna-storage/framed/wiki).
@@ -32,16 +78,16 @@ This package is supported for macOS and Linux. The package has been tested on th
 
 + Linux: CentOS 7
 
-Note that most OSes will support our software by using Docker. **You will also need the following before completing the installation steps**:
-- git 
-- C shell
-- C++ compiler
-- pip, python package installer
-- conda, package management
-- MPI implementation
-	- tested with Intel MPI Library for Linux OS, Version 2017 Update 1 Build 20161016
- 	- tested with open MPI Library for Linux OS, Version 4.1.5
-- Julia, currently tested with 1.6.2 (2021-07-14)
+**Required for all uses:**
+- Python 3.9+
+- pip
+
+**Required only for HPC simulation / full fault injection pipeline:**
+- C shell (tcsh)
+- C++ compiler (for optional fast C++ extensions; pure-Python fallbacks are used otherwise)
+- conda (for the full environment setup via `config/dnastorage.yml`)
+- MPI implementation (tested with Intel MPI 2017 and OpenMPI 4.1.5)
+- Julia 1.6.2+ (used by the DNArSim nanopore simulator only)
 
 
 ### Python Dependences
@@ -66,10 +112,6 @@ To install dnastorage package for local development:
 
 **Note: activating the environment and loading environment variables should be done every new user session.**
 
-
-## Installing via Docker Image
-
-TBD
 
 # Running FrameD Analysis 
 
