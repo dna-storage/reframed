@@ -1,32 +1,52 @@
 """
-User level script to generate fault injection jobs through LSF.
+User level script to generate fault injection jobs through LSF, SLURM, or shell.
 """
 
 import os
+import json
 from lsf_utils.submit import *
 from lsf_utils.param_util import *
 import hashlib
 
+
+def _load_site_config():
+    """Load config/hpc_site.json from the repo root, if present."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.normpath(os.path.join(script_dir, "..", "..", "config", "hpc_site.json"))
+    if os.path.isfile(config_path):
+        with open(config_path) as f:
+            cfg = json.load(f)
+        cfg.pop("_comment", None)
+        return cfg
+    return {}
+
+
 if __name__=="__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Script to generate fault injection jobs")
+
+    site_cfg = _load_site_config()
+
+    parser = argparse.ArgumentParser(
+        description="Script to generate fault injection jobs",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser.add_argument('--params',type=str,required=True,action="store",help="Path to json file with parameters to perform fault injection with")
-    parser.add_argument('--memory',default=None,action="store",help="Memory for each job")
-    parser.add_argument('--cores',default=4,type=int,action="store",help="Cores for each job, this is the active number of working processes during fi execution")
-    parser.add_argument('--time',default=10,type=int,action="store",help="Time allowed for each job,in hours")
-    parser.add_argument('--queue',default="tuck",type=str,action="store",help="Queue to use for jobs")
+    parser.add_argument('--memory',default=site_cfg.get('default_memory', None),action="store",help="Memory for each job (GB)")
+    parser.add_argument('--cores',default=site_cfg.get('default_cores', 4),type=int,action="store",help="Cores for each job, this is the active number of working processes during fi execution")
+    parser.add_argument('--time',default=site_cfg.get('default_hours', 10),type=int,action="store",help="Time allowed for each job, in hours")
+    parser.add_argument('--queue',default=site_cfg.get('queue', "tuck"),type=str,action="store",help="Queue/partition to use for jobs")
     parser.add_argument('--dump_dir',required=True,help="path to store results")
     parser.add_argument('--core_depth',default=1,type=int,action="store",help="the number of additional cores to request per core. Example use case is if you want multiple mpi cores per mpi task")
     parser.add_argument('--job_name',default="dnastorage_fi",action="store",help="name for jobs that will be spawned")
-    parser.add_argument('--avoid_hosts',default=None,nargs='+',help="hosts to avoid when running jobs")
+    parser.add_argument('--avoid_hosts',default=None,nargs='+',help="hosts to avoid when running jobs (LSF only)")
     parser.add_argument('--experiment_prefix',default="",type=str,action="store",help="custom prefix to combine with top level directory name")
-    parser.add_argument('--no',action='store_true', help="don't run bsub command, just test everything.")
-    parser.add_argument('--conda_env_path',action="store",default=None,help="conda env to load")
-    parser.add_argument('--modules',default=list(), nargs='+',help="modules to load")
-    parser.add_argument('--submission', default = "LSF",choices = ["LSF","shell"])
+    parser.add_argument('--no',action='store_true', help="don't submit jobs, just create directories and scripts.")
+    parser.add_argument('--conda_env_path',action="store",default=site_cfg.get('conda_env_path', None),help="conda env path to activate")
+    parser.add_argument('--modules',default=site_cfg.get('modules', []), nargs='+',help="modules to load")
+    parser.add_argument('--submission', default=site_cfg.get('scheduler', "LSF"), choices=["LSF", "SLURM", "shell"])
     args = parser.parse_args()
 
-    #Job parameter setup 
+    #Job parameter setup
     if args.submission=="LSF":
         job = LSFJob()
         job.queue=args.queue
@@ -36,6 +56,12 @@ if __name__=="__main__":
         job.job_name = args.job_name
         if args.avoid_hosts!=None:
             job.avoid_hosts=args.avoid_hosts
+    elif args.submission=="SLURM":
+        job = SlurmJob()
+        job.queue=args.queue
+        job.time=args.time
+        job.memory=args.memory
+        job.job_name=args.job_name
     elif args.submission=="shell":
         #shell execution
         job = TcshJob()
@@ -45,7 +71,7 @@ if __name__=="__main__":
     job.cores=args.cores*args.core_depth+1 #plus one just to make sure we have enough cores
     job.load_modules=args.modules
     job.using_conda_env=args.conda_env_path
-    job.using_ncsu_mpi = True #want to use ncsu's MPI enviroment
+    job.using_ncsu_mpi = site_cfg.get('using_ncsu_mpi', True)
 
     #loading parameters for jobs
     assert os.path.exists(args.params)

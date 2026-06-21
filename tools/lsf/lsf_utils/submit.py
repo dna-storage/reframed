@@ -247,3 +247,59 @@ class LSFJob(TcshJob):
             h=hosts
         self._avoid_hosts=h
 
+
+class SlurmJob(TcshJob):
+    """Submit jobs via SLURM (sbatch) using #SBATCH directives."""
+
+    def __init__(self):
+        TcshJob.__init__(self)
+        self.memory = None
+        self.time = 10
+        self.queue = "batch"
+        self.job_name = "job"
+        self.stdout = "slurm_job.stdout"
+        self.stderr = "slurm_job.stderr"
+        self._generate_name = "hpc_slurm_job.sh"
+
+    def submission_command(self, submission_script_name):
+        return "sbatch {}".format(submission_script_name)
+
+    def final_execution_command(self):
+        if self.using_ncsu_mpi:
+            return "srun {}".format(self.command)
+        return "{}".format(self.command)
+
+    def generate(self):
+        TcshJob.generate(self)
+        slurm_lines = []
+        slurm_lines.append("#SBATCH --ntasks={}".format(self.cores))
+        slurm_lines.append("#SBATCH --time={:02d}:00:00".format(self.time))
+        if self.memory:
+            slurm_lines.append("#SBATCH --mem={}G".format(self.memory))
+        slurm_lines.append("#SBATCH --partition={}".format(self.queue))
+        slurm_lines.append("#SBATCH --job-name={}".format(self.job_name))
+        slurm_lines.append("#SBATCH --output={}.%j".format(self.stdout))
+        slurm_lines.append("#SBATCH --error={}.%j".format(self.stderr))
+        self._script_lines = [self._script_lines[0]] + slurm_lines + self._script_lines[1:]
+
+    @property
+    def memory(self):
+        return self._memory
+    @memory.setter
+    def memory(self, n):
+        self._memory = n
+
+    @property
+    def time(self):
+        return self._time
+    @time.setter
+    def time(self, t):
+        self._time = t
+
+    @property
+    def queue(self):
+        return self._queue
+    @queue.setter
+    def queue(self, q):
+        self._queue = q
+

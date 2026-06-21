@@ -1,0 +1,11 @@
+{
+  "_comment": "Site-specific HPC defaults. All fields are used as defaults by generate_fi_jobs.py; CLI flags override them.",
+  "scheduler": "LSF",
+  "queue": "tuck",
+  "conda_env_path": "$FRAMED_CONDA",
+  "modules": [],
+  "default_cores": 4,
+  "default_hours": 10,
+  "default_memory": null,
+  "using_ncsu_mpi": true
+}
